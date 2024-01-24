@@ -10,8 +10,7 @@ import (
 )
 
 func download(ch <-chan DownloadTask) {
-	host := viper.GetString("host")
-	output := viper.GetString("output")
+	host := viper.GetString("job.host")
 	for task := range ch {
 		taskUrl, err := url.Parse(task.Url)
 		if err != nil {
@@ -28,7 +27,7 @@ func download(ch <-chan DownloadTask) {
 			log.Error().Err(err).Msg("download task")
 			continue
 		}
-		file, err := os.OpenFile(path.Join(output, task.Id, filename), os.O_WRONLY|os.O_CREATE, 0600)
+		file, err := os.OpenFile(path.Join(task.Path, filename), os.O_WRONLY|os.O_CREATE, 0600)
 		if err != nil {
 			log.Error().Err(err).Msg("download task")
 			continue

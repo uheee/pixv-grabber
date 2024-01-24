@@ -34,12 +34,12 @@ func getAll() error {
 }
 
 func getBookmark(ch chan<- DownloadTask, offset *int) (int, error) {
-	host := viper.GetString("host")
-	user := viper.GetString("user")
-	version := viper.GetString("version")
-	cookie := viper.GetString("cookie")
-	lang := viper.GetString("lang")
-	limit := viper.GetInt("limit")
+	host := viper.GetString("job.host")
+	user := viper.GetString("job.user")
+	version := viper.GetString("job.version")
+	cookie := viper.GetString("job.cookie")
+	lang := viper.GetString("job.lang")
+	limit := viper.GetInt("job.limit")
 
 	u, err := url.Parse(host)
 	if err != nil {
@@ -72,6 +72,7 @@ func getBookmark(ch chan<- DownloadTask, offset *int) (int, error) {
 }
 
 func getBookmarkContent(ch chan<- DownloadTask, work BookmarkWorkItem) {
+	output := viper.GetString("job.output")
 	var id string
 	switch reflect.TypeOf(work.Id).Kind() {
 	case reflect.String:
@@ -85,17 +86,38 @@ func getBookmarkContent(ch chan<- DownloadTask, work BookmarkWorkItem) {
 	if err != nil {
 		log.Error().Err(err).Msg("attach log")
 	}
+	cp := path.Join(output, id, work.UpdateDate)
 	if work.IsMasked {
+		mfp := path.Join(cp, "MASKED")
+		if _, err := os.Stat(mfp); os.IsNotExist(err) {
+			log.Warn().Str("id", id).Str("title", work.Title).Msg("new masked")
+			mf, err := os.OpenFile(mfp, os.O_WRONLY|os.O_CREATE, 0600)
+			if err != nil {
+				log.Error().Err(err).Msg("add masked file")
+				return
+			}
+			defer mf.Close()
+			_, err = mf.WriteString(time.Now().Format("2006-01-02 15:04:05"))
+			if err != nil {
+				log.Error().Err(err).Msg("write masked time")
+				return
+			}
+		}
+		return
+	}
+
+	if _, err := os.Stat(cp); !os.IsNotExist(err) {
+		log.Debug().Str("id", id).Msg("target is latest, skip")
 		return
 	}
 
 	if work.IllustType == 0 {
-		err := getImages(ch, id)
+		err := getImages(ch, id, cp)
 		if err != nil {
 			log.Error().Err(err).Msg("get images")
 		}
 	} else if work.IllustType == 2 {
-		err := getVideos(ch, id)
+		err := getVideos(ch, id, cp)
 		if err != nil {
 			log.Error().Err(err).Msg("get videos")
 		}
@@ -104,34 +126,35 @@ func getBookmarkContent(ch chan<- DownloadTask, work BookmarkWorkItem) {
 }
 
 func attachLog(work BookmarkWorkItem, id string) error {
-	output := viper.GetString("output")
+	output := viper.GetString("job.output")
 	workPath := path.Join(output, id)
 	err := os.MkdirAll(workPath, os.ModePerm)
 	if err != nil {
 		return err
 	}
-	logFile, err := os.OpenFile(path.Join(workPath, "log"), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	lf, err := os.OpenFile(path.Join(workPath, "log"), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
-	defer logFile.Close()
-	_, err = logFile.WriteString(fmt.Sprintf(`
+	defer lf.Close()
+	_, err = lf.WriteString(fmt.Sprintf(`
 ################ %s ################
 Title: %s
 IsMasked: %v
+UpdateTime: %s
 #####################################################
-`, time.Now().Format("2006-01-02 15:04:05"), work.Title, work.IsMasked))
+`, time.Now().Format("2006-01-02 15:04:05"), work.Title, work.IsMasked, work.UpdateDate))
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func getImages(ch chan<- DownloadTask, id string) error {
-	host := viper.GetString("host")
-	version := viper.GetString("version")
-	cookie := viper.GetString("cookie")
-	lang := viper.GetString("lang")
+func getImages(ch chan<- DownloadTask, id string, cp string) error {
+	host := viper.GetString("job.host")
+	version := viper.GetString("job.version")
+	cookie := viper.GetString("job.cookie")
+	lang := viper.GetString("job.lang")
 
 	u, err := url.Parse(host)
 	if err != nil {
@@ -154,18 +177,19 @@ func getImages(ch chan<- DownloadTask, id string) error {
 
 	for _, item := range *items {
 		ch <- DownloadTask{
-			Id:  id,
-			Url: item.Urls.Original,
+			Id:   id,
+			Url:  item.Urls.Original,
+			Path: cp,
 		}
 	}
 	return nil
 }
 
-func getVideos(ch chan<- DownloadTask, id string) error {
-	host := viper.GetString("host")
-	version := viper.GetString("version")
-	cookie := viper.GetString("cookie")
-	lang := viper.GetString("lang")
+func getVideos(ch chan<- DownloadTask, id string, cp string) error {
+	host := viper.GetString("job.host")
+	version := viper.GetString("job.version")
+	cookie := viper.GetString("job.cookie")
+	lang := viper.GetString("job.lang")
 
 	u, err := url.Parse(host)
 	if err != nil {
@@ -187,8 +211,9 @@ func getVideos(ch chan<- DownloadTask, id string) error {
 	}
 
 	ch <- DownloadTask{
-		Id:  id,
-		Url: item.OriginalSrc,
+		Id:   id,
+		Url:  item.OriginalSrc,
+		Path: cp,
 	}
 	return nil
 }

@@ -21,10 +21,10 @@ func initConfig() error {
 	viper.SetConfigName("config")
 	viper.SetConfigType("toml")
 	viper.AddConfigPath(".")
-	viper.SetDefault("host", "https://www.pixiv.net")
-	viper.SetDefault("lang", "zh")
-	viper.SetDefault("limit", 100)
-	viper.SetDefault("output", "output")
+	viper.SetDefault("job.host", "https://www.pixiv.net")
+	viper.SetDefault("job.lang", "zh")
+	viper.SetDefault("job.limit", 100)
+	viper.SetDefault("job.output", "output")
 
 	return viper.ReadInConfig()
 }

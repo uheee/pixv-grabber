@@ -16,6 +16,7 @@ type BookmarkWorkItem struct {
 	Title      string `json:"title"`
 	IllustType int    `json:"illustType"`
 	IsMasked   bool   `json:"isMasked"`
+	UpdateDate string `json:"updateDate"`
 }
 
 type ImageItem struct {
@@ -34,6 +35,7 @@ type VideoItem struct {
 }
 
 type DownloadTask struct {
-	Id  string
-	Url string
+	Id   string
+	Url  string
+	Path string
 }
