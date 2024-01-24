@@ -65,6 +65,7 @@ func getBookmark(ch chan<- DownloadTask, offset *int) (int, error) {
 	}
 
 	for _, work := range bookmark.Works {
+		log.Info().Str("title", work.Title).Int("pages", work.PageCount).Msg("start work")
 		go getBookmarkContent(ch, work)
 	}
 	*offset += limit
@@ -85,10 +86,16 @@ func getBookmarkContent(ch chan<- DownloadTask, work BookmarkWorkItem) {
 	err := attachLog(work, id)
 	if err != nil {
 		log.Error().Err(err).Msg("attach log")
+		return
 	}
-	cp := path.Join(output, id, work.UpdateDate)
+	ut, err := time.Parse("2006-01-02T15:04:05-07:00", work.UpdateDate)
+	if err != nil {
+		log.Error().Err(err).Msg("parse update time")
+		return
+	}
+	cp := path.Join(output, id, ut.UTC().Format("20060102150405"))
 	if work.IsMasked {
-		mfp := path.Join(cp, "MASKED")
+		mfp := path.Join(output, id, "MASKED")
 		if _, err := os.Stat(mfp); os.IsNotExist(err) {
 			log.Warn().Str("id", id).Str("title", work.Title).Msg("new masked")
 			mf, err := os.OpenFile(mfp, os.O_WRONLY|os.O_CREATE, 0600)
@@ -110,6 +117,10 @@ func getBookmarkContent(ch chan<- DownloadTask, work BookmarkWorkItem) {
 		log.Debug().Str("id", id).Msg("target is latest, skip")
 		return
 	}
+	err = os.MkdirAll(cp, os.ModePerm)
+	if err != nil {
+		log.Error().Err(err).Msg("create latest dir")
+	}
 
 	if work.IllustType == 0 {
 		err := getImages(ch, id, cp)
@@ -122,7 +133,6 @@ func getBookmarkContent(ch chan<- DownloadTask, work BookmarkWorkItem) {
 			log.Error().Err(err).Msg("get videos")
 		}
 	}
-
 }
 
 func attachLog(work BookmarkWorkItem, id string) error {

@@ -15,6 +15,7 @@ type BookmarkWorkItem struct {
 	Id         any    `json:"id"`
 	Title      string `json:"title"`
 	IllustType int    `json:"illustType"`
+	PageCount  int    `json:"pageCount"`
 	IsMasked   bool   `json:"isMasked"`
 	UpdateDate string `json:"updateDate"`
 }

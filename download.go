@@ -12,6 +12,7 @@ import (
 func download(ch <-chan DownloadTask) {
 	host := viper.GetString("job.host")
 	for task := range ch {
+		log.Debug().Str("id", task.Id).Msg("start download")
 		taskUrl, err := url.Parse(task.Url)
 		if err != nil {
 			log.Error().Err(err).Msg("download task")
