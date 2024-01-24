@@ -12,25 +12,17 @@ import (
 	"time"
 )
 
-func getAll() error {
-	ch := make(chan DownloadTask)
-
-	go func() {
-		offset := 0
-		for {
-			total, err := getBookmark(ch, &offset)
-			if err != nil {
-				log.Error().Err(err).Msg("get bookmark")
-				return
-			}
-			if offset >= total {
-				break
-			}
+func getAll(ch chan<- DownloadTask) {
+	offset := 0
+	for {
+		total, err := getBookmark(ch, &offset)
+		if err != nil {
+			log.Error().Err(err).Msg("get bookmark")
 		}
-	}()
-
-	download(ch)
-	return nil
+		if offset >= total {
+			break
+		}
+	}
 }
 
 func getBookmark(ch chan<- DownloadTask, offset *int) (int, error) {

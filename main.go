@@ -14,22 +14,20 @@ func main() {
 	}
 	initLog()
 
+	ch := make(chan DownloadTask)
 	c := cron.New()
 	ce := viper.GetString("job.cron")
 	_, err = c.AddFunc(ce, func() {
 		ct := time.Now()
 		log.Info().Time("current", ct).Msg("start cron job")
-		err = getAll()
-		if err != nil {
-			log.Error().Err(err).Msg("get all")
-		}
+		getAll(ch)
 		log.Info().Time("current", ct).Msg("finish cron job")
 	})
 	if err != nil {
 		panic(err)
 	}
 	c.Start()
-	select {}
+	download(ch)
 }
 
 func initConfig() error {
