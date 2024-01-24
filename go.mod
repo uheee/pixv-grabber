@@ -3,6 +3,7 @@ module github.com/uheee/pixiv-grabber
 go 1.21.5
 
 require (
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/zerolog v1.31.0
 	github.com/spf13/viper v1.18.2
 )
