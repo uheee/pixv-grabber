@@ -6,6 +6,7 @@ import (
 )
 
 func main() {
+	initLog()
 	err := initConfig()
 	if err != nil {
 		log.Fatal(err)
