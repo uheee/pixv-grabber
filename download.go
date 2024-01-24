@@ -28,7 +28,7 @@ func download(ch <-chan DownloadTask) {
 			log.Error().Err(err).Msg("download task")
 			continue
 		}
-		file, err := os.OpenFile(path.Join(task.Path, filename), os.O_WRONLY|os.O_CREATE, 0600)
+		file, err := os.OpenFile(path.Join(task.Path, filename), os.O_WRONLY|os.O_CREATE, os.ModePerm)
 		if err != nil {
 			log.Error().Err(err).Msg("download task")
 			continue

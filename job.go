@@ -90,7 +90,7 @@ func getBookmarkContent(ch chan<- DownloadTask, work BookmarkWorkItem) {
 		mfp := path.Join(output, id, "MASKED")
 		if _, err := os.Stat(mfp); os.IsNotExist(err) {
 			log.Warn().Str("id", id).Str("title", work.Title).Msg("new masked")
-			mf, err := os.OpenFile(mfp, os.O_WRONLY|os.O_CREATE, 0600)
+			mf, err := os.OpenFile(mfp, os.O_WRONLY|os.O_CREATE, os.ModePerm)
 			if err != nil {
 				log.Error().Err(err).Msg("add masked file")
 				return
@@ -134,7 +134,7 @@ func attachLog(work BookmarkWorkItem, id string) error {
 	if err != nil {
 		return err
 	}
-	lf, err := os.OpenFile(path.Join(workPath, "log"), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	lf, err := os.OpenFile(path.Join(workPath, "log"), os.O_APPEND|os.O_WRONLY|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return err
 	}
