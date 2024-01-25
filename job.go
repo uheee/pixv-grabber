@@ -109,6 +109,7 @@ func getBookmarkContent(ch chan<- DownloadTask, work BookmarkWorkItem) {
 		log.Debug().Str("id", id).Msg("target is latest, skip")
 		return
 	}
+	log.Warn().Str("id", id).Str("title", work.Title).Msg("new updated")
 	err = os.MkdirAll(cp, os.ModePerm)
 	if err != nil {
 		log.Error().Err(err).Msg("create latest dir")
