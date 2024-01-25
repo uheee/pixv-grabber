@@ -1,0 +1,17 @@
+name: 'Publish to Dockerhub'
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  Build-Docker-Image:
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'Check out repository code'
+        uses: 'actions/checkout@v4'
+      - name: 'Build & Push'
+        run: |
+          docker buildx build -t snowind/pixiv-grabber:${{github.ref_name}} .
+          docker login -u snowind -p ${{secrets.DOCKERHUB_TOKEN}}
+          docker push snowind/pixiv-grabber:${{github.ref_name}}
