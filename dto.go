@@ -12,12 +12,15 @@ type BookmarkBody struct {
 }
 
 type BookmarkWorkItem struct {
-	Id         any    `json:"id"`
-	Title      string `json:"title"`
-	IllustType int    `json:"illustType"`
-	PageCount  int    `json:"pageCount"`
-	IsMasked   bool   `json:"isMasked"`
-	UpdateDate string `json:"updateDate"`
+	Id         any      `json:"id"`
+	Title      string   `json:"title"`
+	IllustType int      `json:"illustType"`
+	Url        string   `json:"url"`
+	Tags       []string `json:"tags"`
+	PageCount  int      `json:"pageCount"`
+	CreateDate string   `json:"createDate"`
+	UpdateDate string   `json:"updateDate"`
+	IsMasked   bool     `json:"isMasked"`
 }
 
 type ImageItem struct {

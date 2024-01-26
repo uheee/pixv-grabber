@@ -9,6 +9,7 @@ import (
 	"path"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -144,9 +145,18 @@ func attachLog(work BookmarkWorkItem, id string) error {
 ################ %s ################
 Title: %s
 IsMasked: %v
+CreateTime: %s
 UpdateTime: %s
+Tags: %s
 #####################################################
-`, time.Now().Format("2006-01-02 15:04:05"), work.Title, work.IsMasked, work.UpdateDate))
+`,
+		time.Now().Format("2006-01-02 15:04:05"),
+		work.Title,
+		work.IsMasked,
+		work.CreateDate,
+		work.UpdateDate,
+		strings.Join(work.Tags, "||"),
+	))
 	if err != nil {
 		return err
 	}
