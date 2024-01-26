@@ -1,4 +1,4 @@
-package main
+package request
 
 type Response[T any] struct {
 	Error   bool   `json:"error"`
@@ -36,10 +36,4 @@ type ImageItem struct {
 
 type VideoItem struct {
 	OriginalSrc string `json:"originalSrc"`
-}
-
-type DownloadTask struct {
-	Id   string
-	Url  string
-	Path string
 }

@@ -4,6 +4,8 @@ import (
 	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
+	"github.com/uheee/pixiv-grabber/internal/job"
+	"github.com/uheee/pixiv-grabber/internal/logger"
 	"net/http"
 	"net/url"
 	"time"
@@ -14,7 +16,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	initLog()
+	logger.InitLog()
 
 	hp := viper.GetString("proxy.http")
 	if hp != "" {
@@ -26,20 +28,20 @@ func main() {
 		}
 	}
 
-	ch := make(chan DownloadTask)
+	ch := make(chan job.DownloadTask)
 	c := cron.New()
 	ce := viper.GetString("job.cron")
 	_, err = c.AddFunc(ce, func() {
 		ct := time.Now()
 		log.Info().Time("current", ct).Msg("start cron job")
-		getAll(ch)
+		job.GetAll(ch)
 		log.Info().Time("current", ct).Msg("finish cron job")
 	})
 	if err != nil {
 		panic(err)
 	}
 	c.Start()
-	download(ch)
+	job.Download(ch)
 }
 
 func initConfig() error {

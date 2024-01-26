@@ -1,4 +1,4 @@
-package main
+package request
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-func getRawFromHttpReq(url string, headers map[string]string) ([]byte, error) {
+func GetRawFromHttpReq(url string, headers map[string]string) ([]byte, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -29,8 +29,8 @@ func getRawFromHttpReq(url string, headers map[string]string) ([]byte, error) {
 	return body, nil
 }
 
-func getJsonFromHttpReq[TBody any](url string, headers map[string]string) (*TBody, error) {
-	body, err := getRawFromHttpReq(url, headers)
+func GetJsonFromHttpReq[TBody any](url string, headers map[string]string) (*TBody, error) {
+	body, err := GetRawFromHttpReq(url, headers)
 	if err != nil {
 		return nil, err
 	}

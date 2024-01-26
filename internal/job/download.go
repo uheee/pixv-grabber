@@ -1,15 +1,16 @@
-package main
+package job
 
 import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
+	"github.com/uheee/pixiv-grabber/internal/request"
 	"net/url"
 	"os"
 	"path"
 	"strings"
 )
 
-func download(ch <-chan DownloadTask) {
+func Download(ch <-chan DownloadTask) {
 	host := viper.GetString("job.host")
 	for task := range ch {
 		log.Info().Str("id", task.Id).Msg("start download")
@@ -20,7 +21,7 @@ func download(ch <-chan DownloadTask) {
 		}
 		items := strings.Split(taskUrl.Path, "/")
 		filename := items[len(items)-1]
-		raw, err := getRawFromHttpReq(task.Url, map[string]string{
+		raw, err := request.GetRawFromHttpReq(task.Url, map[string]string{
 			"User-Agent": "Mozilla/5.0",
 			"Referer":    host,
 		})

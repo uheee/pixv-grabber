@@ -1,9 +1,10 @@
-package main
+package job
 
 import (
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
+	"github.com/uheee/pixiv-grabber/internal/request"
 	"net/url"
 	"os"
 	"path"
@@ -13,7 +14,7 @@ import (
 	"time"
 )
 
-func getAll(ch chan<- DownloadTask) {
+func GetAll(ch chan<- DownloadTask) {
 	offset := 0
 	for {
 		total, err := getBookmark(ch, &offset)
@@ -49,7 +50,7 @@ func getBookmark(ch chan<- DownloadTask, offset *int) (int, error) {
 	query.Set("limit", strconv.Itoa(limit))
 	u.RawQuery = query.Encode()
 	reqUrl := u.String()
-	bookmark, err := getJsonFromHttpReq[BookmarkBody](reqUrl, map[string]string{
+	bookmark, err := request.GetJsonFromHttpReq[request.BookmarkBody](reqUrl, map[string]string{
 		"User-Agent": "Mozilla/5.0",
 		"Cookie":     cookie,
 	})
@@ -65,7 +66,7 @@ func getBookmark(ch chan<- DownloadTask, offset *int) (int, error) {
 	return bookmark.Total, nil
 }
 
-func getBookmarkContent(ch chan<- DownloadTask, work BookmarkWorkItem) {
+func getBookmarkContent(ch chan<- DownloadTask, work request.BookmarkWorkItem) {
 	output := viper.GetString("job.output")
 	var id string
 	switch reflect.TypeOf(work.Id).Kind() {
@@ -129,7 +130,7 @@ func getBookmarkContent(ch chan<- DownloadTask, work BookmarkWorkItem) {
 	}
 }
 
-func attachLog(work BookmarkWorkItem, id string) error {
+func attachLog(work request.BookmarkWorkItem, id string) error {
 	output := viper.GetString("job.output")
 	workPath := path.Join(output, id)
 	err := os.MkdirAll(workPath, os.ModePerm)
@@ -180,7 +181,7 @@ func getImages(ch chan<- DownloadTask, id string, cp string) error {
 	query.Set("lang", lang)
 	u.RawQuery = query.Encode()
 	reqUrl := u.String()
-	items, err := getJsonFromHttpReq[[]ImageItem](reqUrl, map[string]string{
+	items, err := request.GetJsonFromHttpReq[[]request.ImageItem](reqUrl, map[string]string{
 		"User-Agent": "Mozilla/5.0",
 		"Cookie":     cookie,
 	})
@@ -215,7 +216,7 @@ func getVideos(ch chan<- DownloadTask, id string, cp string) error {
 	query.Set("lang", lang)
 	u.RawQuery = query.Encode()
 	reqUrl := u.String()
-	item, err := getJsonFromHttpReq[VideoItem](reqUrl, map[string]string{
+	item, err := request.GetJsonFromHttpReq[request.VideoItem](reqUrl, map[string]string{
 		"User-Agent": "Mozilla/5.0",
 		"Cookie":     cookie,
 	})
@@ -229,4 +230,10 @@ func getVideos(ch chan<- DownloadTask, id string, cp string) error {
 		Path: cp,
 	}
 	return nil
+}
+
+type DownloadTask struct {
+	Id   string
+	Url  string
+	Path string
 }

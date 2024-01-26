@@ -1,4 +1,4 @@
-package main
+package logger
 
 import (
 	"fmt"
@@ -23,7 +23,7 @@ const (
 	colorDarkGray = 90
 )
 
-func initLog() {
+func InitLog() {
 	logLevel := viper.GetString("log.level")
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMs
 	writer := zerolog.ConsoleWriter{
