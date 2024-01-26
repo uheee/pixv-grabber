@@ -4,6 +4,8 @@ import (
 	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
+	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -13,6 +15,16 @@ func main() {
 		panic(err)
 	}
 	initLog()
+
+	hp := viper.GetString("proxy.http")
+	if hp != "" {
+		pu, err := url.Parse(hp)
+		if err != nil {
+			log.Error().Err(err).Str("proxy", hp).Msg("unable to use proxy")
+		} else {
+			http.DefaultTransport = &http.Transport{Proxy: http.ProxyURL(pu)}
+		}
+	}
 
 	ch := make(chan DownloadTask)
 	c := cron.New()

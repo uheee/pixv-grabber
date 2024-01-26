@@ -1,6 +1,9 @@
 [log]
 level = 'debug'
 
+[proxy]
+http = ''
+
 [job]
 cron = "* * * * *"
 user = '29097741'
