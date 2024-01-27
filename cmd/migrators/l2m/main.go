@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
+	"github.com/uheee/pixiv-grabber/internal/logger"
 	"github.com/uheee/pixiv-grabber/internal/manifest"
 	"github.com/uheee/pixiv-grabber/internal/request"
 	"github.com/uheee/pixiv-grabber/internal/utils"
@@ -21,23 +22,22 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	logger.InitLog()
+
 	output := viper.GetString("job.output")
 	mCh := make(chan request.BookmarkWorkItem)
-	go func() {
-		err = filepath.WalkDir(output, func(path string, d fs.DirEntry, err error) error {
-			if d.IsDir() && strings.Count(path, string(os.PathSeparator)) > 1 {
-				return fs.SkipDir
-			}
-			if !d.IsDir() && d.Name() == "log" {
-				go processLog(mCh, path)
-			}
-			return nil
-		})
-		if err != nil {
-			log.Fatal().Err(err).Str("path", output).Msg("unable to walk dir")
+	err = filepath.WalkDir(output, func(path string, d fs.DirEntry, err error) error {
+		if d.IsDir() && strings.Count(path, string(os.PathSeparator)) > 1 {
+			return fs.SkipDir
 		}
-		close(mCh)
-	}()
+		if !d.IsDir() && d.Name() == "log" {
+			go processLog(mCh, path)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatal().Err(err).Str("path", output).Msg("unable to walk dir")
+	}
 	manifest.StartRecord(mCh)
 }
 
