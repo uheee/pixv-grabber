@@ -169,9 +169,9 @@ func StartRecord(mCh <-chan request.BookmarkWorkItem) {
 			} else {
 				ut, err := time.Parse("2006-01-02T15:04:05-07:00", wi.UpdateDate)
 				uts := ut.UTC().Unix()
-				//if err == nil && uts == w.UpdateDate {
-				//	continue
-				//}
+				if err == nil && uts == w.UpdateDate {
+					continue
+				}
 				w.Title = wi.Title
 				w.IllustType = wi.IllustType
 				bs, err := json.Marshal(wi.Tags)
