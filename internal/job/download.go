@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func Download(ch <-chan DownloadTask) {
+func StartDownload(ch <-chan DownloadTask) {
 	host := viper.GetString("job.host")
 	for task := range ch {
 		log.Info().Str("id", task.Id).Msg("start download")

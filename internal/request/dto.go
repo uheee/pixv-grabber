@@ -1,5 +1,11 @@
 package request
 
+import (
+	"github.com/rs/zerolog/log"
+	"reflect"
+	"strconv"
+)
+
 type Response[T any] struct {
 	Error   bool   `json:"error"`
 	Message string `json:"message"`
@@ -21,6 +27,21 @@ type BookmarkWorkItem struct {
 	CreateDate string   `json:"createDate"`
 	UpdateDate string   `json:"updateDate"`
 	IsMasked   bool     `json:"isMasked"`
+}
+
+func (s *BookmarkWorkItem) GetId() uint64 {
+	switch reflect.TypeOf(s.Id).Kind() {
+	case reflect.String:
+		id, err := strconv.ParseUint(s.Id.(string), 10, 64)
+		if err != nil {
+			log.Error().Err(err).Any("id", s.Id).Msg("new type of id")
+		}
+		return id
+	case reflect.Float64:
+		return uint64(s.Id.(float64))
+	default:
+		panic("unhandled default case")
+	}
 }
 
 type ImageItem struct {

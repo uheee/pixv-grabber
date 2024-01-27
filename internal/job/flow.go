@@ -1,23 +1,20 @@
 package job
 
 import (
-	"fmt"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 	"github.com/uheee/pixiv-grabber/internal/request"
 	"net/url"
 	"os"
 	"path"
-	"reflect"
 	"strconv"
-	"strings"
 	"time"
 )
 
-func GetAll(ch chan<- DownloadTask) {
+func ProcessHttp(mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask) {
 	offset := 0
 	for {
-		total, err := getBookmark(ch, &offset)
+		total, err := getBookmark(mCh, dCh, &offset)
 		if err != nil {
 			log.Error().Err(err).Msg("get bookmark")
 		}
@@ -27,7 +24,7 @@ func GetAll(ch chan<- DownloadTask) {
 	}
 }
 
-func getBookmark(ch chan<- DownloadTask, offset *int) (int, error) {
+func getBookmark(mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, offset *int) (int, error) {
 	host := viper.GetString("job.host")
 	user := viper.GetString("job.user")
 	version := viper.GetString("job.version")
@@ -60,108 +57,49 @@ func getBookmark(ch chan<- DownloadTask, offset *int) (int, error) {
 
 	for _, work := range bookmark.Works {
 		log.Info().Str("title", work.Title).Int("pages", work.PageCount).Msg("start work")
-		go getBookmarkContent(ch, work)
+		go getBookmarkContent(mCh, dCh, work)
 	}
 	*offset += limit
 	return bookmark.Total, nil
 }
 
-func getBookmarkContent(ch chan<- DownloadTask, work request.BookmarkWorkItem) {
+func getBookmarkContent(mCh chan<- request.BookmarkWorkItem, ch chan<- DownloadTask, work request.BookmarkWorkItem) {
 	output := viper.GetString("job.output")
-	var id string
-	switch reflect.TypeOf(work.Id).Kind() {
-	case reflect.String:
-		id = work.Id.(string)
-	case reflect.Float64:
-		id = strconv.FormatFloat(work.Id.(float64), 'f', -1, 64)
-	default:
-		panic("unhandled default case")
-	}
-	err := attachLog(work, id)
-	if err != nil {
-		log.Error().Err(err).Msg("attach log")
-		return
-	}
+	id := work.GetId()
+	idStr := strconv.FormatUint(id, 10)
+	mCh <- work
+
 	ut, err := time.Parse("2006-01-02T15:04:05-07:00", work.UpdateDate)
 	if err != nil {
 		log.Error().Err(err).Msg("parse update time")
 		return
 	}
-	cp := path.Join(output, id, ut.UTC().Format("20060102150405"))
+	cp := path.Join(output, idStr, ut.UTC().Format("20060102150405"))
 	if work.IsMasked {
-		mfp := path.Join(output, id, "MASKED")
-		if _, err := os.Stat(mfp); os.IsNotExist(err) {
-			log.Warn().Str("id", id).Str("title", work.Title).Msg("new masked")
-			mf, err := os.OpenFile(mfp, os.O_WRONLY|os.O_CREATE, os.ModePerm)
-			if err != nil {
-				log.Error().Err(err).Msg("add masked file")
-				return
-			}
-			defer mf.Close()
-			_, err = mf.WriteString(time.Now().Format("2006-01-02 15:04:05"))
-			if err != nil {
-				log.Error().Err(err).Msg("write masked time")
-				return
-			}
-		}
 		return
 	}
 
 	if _, err := os.Stat(cp); !os.IsNotExist(err) {
-		log.Debug().Str("id", id).Msg("target is latest, skip")
+		log.Debug().Uint64("id", id).Msg("target is latest, skip")
 		return
 	}
-	log.Warn().Str("id", id).Str("title", work.Title).Msg("new updated")
+
 	err = os.MkdirAll(cp, os.ModePerm)
 	if err != nil {
 		log.Error().Err(err).Msg("create latest dir")
 	}
 
 	if work.IllustType == 0 {
-		err := getImages(ch, id, cp)
+		err := getImages(ch, idStr, cp)
 		if err != nil {
 			log.Error().Err(err).Msg("get images")
 		}
 	} else if work.IllustType == 2 {
-		err := getVideos(ch, id, cp)
+		err := getVideos(ch, idStr, cp)
 		if err != nil {
 			log.Error().Err(err).Msg("get videos")
 		}
 	}
-}
-
-func attachLog(work request.BookmarkWorkItem, id string) error {
-	output := viper.GetString("job.output")
-	workPath := path.Join(output, id)
-	err := os.MkdirAll(workPath, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	lf, err := os.OpenFile(path.Join(workPath, "log"), os.O_APPEND|os.O_WRONLY|os.O_CREATE, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	defer lf.Close()
-	_, err = lf.WriteString(fmt.Sprintf(`
-################ %s ################
-Title: %s
-IsMasked: %v
-CreateTime: %s
-UpdateTime: %s
-Tags: %s
-#####################################################
-`,
-		time.Now().Format("2006-01-02 15:04:05"),
-		work.Title,
-		work.IsMasked,
-		work.CreateDate,
-		work.UpdateDate,
-		strings.Join(work.Tags, "||"),
-	))
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func getImages(ch chan<- DownloadTask, id string, cp string) error {
