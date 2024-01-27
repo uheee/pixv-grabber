@@ -8,13 +8,14 @@ import (
 	"github.com/uheee/pixiv-grabber/internal/logger"
 	"github.com/uheee/pixiv-grabber/internal/manifest"
 	"github.com/uheee/pixiv-grabber/internal/request"
+	"github.com/uheee/pixiv-grabber/internal/utils"
 	"net/http"
 	"net/url"
 	"time"
 )
 
 func main() {
-	err := initConfig()
+	err := utils.InitConfig()
 	if err != nil {
 		panic(err)
 	}
@@ -47,17 +48,4 @@ func main() {
 	go manifest.StartRecord(mCh)
 	go job.StartDownload(dCh)
 	select {}
-}
-
-func initConfig() error {
-	viper.SetConfigName("config")
-	viper.SetConfigType("toml")
-	viper.AddConfigPath(".")
-	viper.SetDefault("log.level", "info")
-	viper.SetDefault("job.host", "https://www.pixiv.net")
-	viper.SetDefault("job.lang", "zh")
-	viper.SetDefault("job.limit", 100)
-	viper.SetDefault("job.output", "output")
-
-	return viper.ReadInConfig()
 }
