@@ -89,12 +89,14 @@ func getBookmarkContent(mCh chan<- request.BookmarkWorkItem, ch chan<- DownloadT
 		log.Error().Err(err).Msg("create latest dir")
 	}
 
-	if work.IllustType == 0 {
+	switch work.IllustType {
+	case 0:
+	case 1:
 		err := getImages(ch, idStr, cp)
 		if err != nil {
 			log.Error().Err(err).Msg("get images")
 		}
-	} else if work.IllustType == 2 {
+	case 2:
 		err := getVideos(ch, idStr, cp)
 		if err != nil {
 			log.Error().Err(err).Msg("get videos")
