@@ -80,8 +80,12 @@ func getBookmarkContent(mCh chan<- request.BookmarkWorkItem, ch chan<- DownloadT
 	}
 
 	if _, err := os.Stat(cp); !os.IsNotExist(err) {
-		log.Debug().Uint64("id", id).Msg("target is latest, skip")
-		return
+		if work.IllustType != 1 {
+			log.Debug().Uint64("id", id).Msg("target is latest, skip")
+			return
+		} else {
+			log.Warn().Uint64("id", id).Str("title", work.Title).Msg("illust type 1 asset")
+		}
 	}
 
 	err = os.MkdirAll(cp, os.ModePerm)
