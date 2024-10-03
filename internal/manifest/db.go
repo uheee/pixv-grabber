@@ -9,6 +9,7 @@ import (
 	"github.com/uheee/pixiv-grabber/internal/request"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -67,7 +68,7 @@ update work
 set masked_date = :masked_date
 where id = :id;`
 
-func StartRecord(mCh <-chan request.BookmarkWorkItem) {
+func StartRecord(mCh <-chan request.BookmarkWorkItem, wg *sync.WaitGroup) {
 	output := viper.GetString("job.output")
 	dbFile := filepath.Join(output, "manifest")
 	err := os.MkdirAll(output, os.ModePerm)
@@ -80,31 +81,57 @@ func StartRecord(mCh <-chan request.BookmarkWorkItem) {
 		return
 	}
 	db.MustExec(workSchema)
-	qst, err := db.PrepareNamed(queryPreparation)
-	if err != nil {
-		log.Error().Err(err).Msg("unable to prepare query")
-		return
-	}
-	ist, err := db.PrepareNamed(insertPreparation)
-	if err != nil {
-		log.Error().Err(err).Msg("unable to prepare insert")
-		return
-	}
-	ust1, err := db.PrepareNamed(updatePreparation1)
-	if err != nil {
-		log.Error().Err(err).Msg("unable to prepare update 1")
-		return
-	}
-	ust2, err := db.PrepareNamed(updatePreparation2)
-	if err != nil {
-		log.Error().Err(err).Msg("unable to prepare update 2")
-		return
+	sts := SqlxStmts{
+		Query:   prepareStmts(db, queryPreparation, "unable to prepare query"),
+		Insert:  prepareStmts(db, insertPreparation, "unable to prepare insert"),
+		Update1: prepareStmts(db, updatePreparation1, "unable to prepare update 1"),
+		Update2: prepareStmts(db, updatePreparation2, "unable to prepare update 2"),
 	}
 	for wi := range mCh {
-		var w WorkModel
-		err := qst.Get(&w, wi)
+		onceRecord(sts, wi, wg)
+	}
+}
+
+func onceRecord(sts SqlxStmts, wi request.BookmarkWorkItem, wg *sync.WaitGroup) {
+	if wg != nil {
+		defer wg.Done()
+	}
+	var w WorkModel
+	err := sts.Query.Get(&w, wi)
+	if err != nil {
+		w.Id = wi.GetId()
+		w.Title = wi.Title
+		w.IllustType = wi.IllustType
+		bs, err := json.Marshal(wi.Tags)
+		if err == nil {
+			w.Tags = bs
+		}
+		w.PageCount = wi.PageCount
+		ct, err := time.Parse("2006-01-02T15:04:05-07:00", wi.CreateDate)
+		if err == nil {
+			cts := ct.UTC().Unix()
+			w.CreateDate = cts
+		}
+		ut, err := time.Parse("2006-01-02T15:04:05-07:00", wi.UpdateDate)
+		if err == nil {
+			uts := ut.UTC().Unix()
+			w.UpdateDate = uts
+		}
+		if wi.IsMasked {
+			w.MaskedDate = time.Now().UTC().Unix()
+		} else {
+			w.MaskedDate = -1
+		}
+
+		log.Warn().Uint64("id", w.Id).Str("title", w.Title).Msg("new work")
+		_, err = sts.Insert.Exec(w)
 		if err != nil {
-			w.Id = wi.GetId()
+			log.Error().Err(err).Msg("unable to insert work to db")
+		}
+	} else if w.MaskedDate != -1 {
+		if wi.IsMasked {
+			return
+		} else {
 			w.Title = wi.Title
 			w.IllustType = wi.IllustType
 			bs, err := json.Marshal(wi.Tags)
@@ -112,81 +139,64 @@ func StartRecord(mCh <-chan request.BookmarkWorkItem) {
 				w.Tags = bs
 			}
 			w.PageCount = wi.PageCount
-			ct, err := time.Parse("2006-01-02T15:04:05-07:00", wi.CreateDate)
-			if err == nil {
-				cts := ct.UTC().Unix()
-				w.CreateDate = cts
-			}
 			ut, err := time.Parse("2006-01-02T15:04:05-07:00", wi.UpdateDate)
 			if err == nil {
 				uts := ut.UTC().Unix()
 				w.UpdateDate = uts
 			}
-			if wi.IsMasked {
-				w.MaskedDate = time.Now().UTC().Unix()
-			} else {
-				w.MaskedDate = -1
-			}
+			w.MaskedDate = -1
 
-			log.Warn().Uint64("id", w.Id).Str("title", w.Title).Msg("new work")
-			_, err = ist.Exec(w)
+			log.Warn().Uint64("id", w.Id).Str("title", w.Title).Msg("masked -> unmasked")
+			_, err = sts.Update1.Exec(w)
 			if err != nil {
-				log.Error().Err(err).Msg("unable to insert work to db")
+				log.Error().Err(err).Msg("unable to update work to db")
 			}
-		} else if w.MaskedDate != -1 {
-			if wi.IsMasked {
-				continue
-			} else {
-				w.Title = wi.Title
-				w.IllustType = wi.IllustType
-				bs, err := json.Marshal(wi.Tags)
-				if err == nil {
-					w.Tags = bs
-				}
-				w.PageCount = wi.PageCount
-				ut, err := time.Parse("2006-01-02T15:04:05-07:00", wi.UpdateDate)
-				if err == nil {
-					uts := ut.UTC().Unix()
-					w.UpdateDate = uts
-				}
-				w.MaskedDate = -1
+		}
+	} else {
+		if wi.IsMasked {
+			w.MaskedDate = time.Now().UTC().Unix()
 
-				log.Warn().Uint64("id", w.Id).Str("title", w.Title).Msg("masked -> unmasked")
-				_, err = ust1.Exec(w)
-				if err != nil {
-					log.Error().Err(err).Msg("unable to update work to db")
-				}
+			log.Warn().Uint64("id", w.Id).Str("title", w.Title).Msg("unmasked -> masked")
+			_, err = sts.Update2.Exec(w)
+			if err != nil {
+				log.Error().Err(err).Msg("unable to update work to db")
 			}
 		} else {
-			if wi.IsMasked {
-				w.MaskedDate = time.Now().UTC().Unix()
+			ut, err := time.Parse("2006-01-02T15:04:05-07:00", wi.UpdateDate)
+			uts := ut.UTC().Unix()
+			if err == nil && uts == w.UpdateDate {
+				return
+			}
+			w.Title = wi.Title
+			w.IllustType = wi.IllustType
+			bs, err := json.Marshal(wi.Tags)
+			if err == nil {
+				w.Tags = bs
+			}
+			w.PageCount = wi.PageCount
+			w.UpdateDate = uts
 
-				log.Warn().Uint64("id", w.Id).Str("title", w.Title).Msg("unmasked -> masked")
-				_, err = ust2.Exec(w)
-				if err != nil {
-					log.Error().Err(err).Msg("unable to update work to db")
-				}
-			} else {
-				ut, err := time.Parse("2006-01-02T15:04:05-07:00", wi.UpdateDate)
-				uts := ut.UTC().Unix()
-				if err == nil && uts == w.UpdateDate {
-					continue
-				}
-				w.Title = wi.Title
-				w.IllustType = wi.IllustType
-				bs, err := json.Marshal(wi.Tags)
-				if err == nil {
-					w.Tags = bs
-				}
-				w.PageCount = wi.PageCount
-				w.UpdateDate = uts
-
-				log.Warn().Uint64("id", w.Id).Str("title", w.Title).Msg("update")
-				_, err = ust1.Exec(w)
-				if err != nil {
-					log.Error().Err(err).Msg("unable to update work to db")
-				}
+			log.Warn().Uint64("id", w.Id).Str("title", w.Title).Msg("update")
+			_, err = sts.Update1.Exec(w)
+			if err != nil {
+				log.Error().Err(err).Msg("unable to update work to db")
 			}
 		}
 	}
+}
+
+type SqlxStmts struct {
+	Query   *sqlx.NamedStmt
+	Insert  *sqlx.NamedStmt
+	Update1 *sqlx.NamedStmt
+	Update2 *sqlx.NamedStmt
+}
+
+func prepareStmts(db *sqlx.DB, sql string, errMsg string) *sqlx.NamedStmt {
+	stmt, err := db.PrepareNamed(sql)
+	if err != nil {
+		log.Error().Err(err).Msg(errMsg)
+		panic(err)
+	}
+	return stmt
 }

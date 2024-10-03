@@ -38,7 +38,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Str("path", output).Msg("unable to walk dir")
 	}
-	manifest.StartRecord(mCh)
+	manifest.StartRecord(mCh, nil)
 }
 
 var headRegex = regexp.MustCompile(`################\s([^#]+)\s################`)

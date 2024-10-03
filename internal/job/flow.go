@@ -9,13 +9,14 @@ import (
 	"path"
 	"slices"
 	"strconv"
+	"sync"
 	"time"
 )
 
-func ProcessHttp(mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask) {
+func ProcessHttp(mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, wg *sync.WaitGroup) {
 	offset := 0
 	for {
-		total, err := getBookmark(mCh, dCh, &offset)
+		total, err := getBookmark(mCh, dCh, &offset, wg)
 		if err != nil {
 			log.Error().Err(err).Msg("get bookmark")
 		}
@@ -25,7 +26,7 @@ func ProcessHttp(mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask) {
 	}
 }
 
-func getBookmark(mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, offset *int) (int, error) {
+func getBookmark(mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, offset *int, wg *sync.WaitGroup) (int, error) {
 	host := viper.GetString("job.host")
 	user := viper.GetString("job.user")
 	version := viper.GetString("job.version")
@@ -57,14 +58,14 @@ func getBookmark(mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, o
 	}
 
 	for _, work := range bookmark.Works {
-		log.Info().Any("id", work.Id).Str("title", work.Title).Int("pages", work.PageCount).Msg("start work")
-		go getBookmarkContent(mCh, dCh, work)
+		log.Trace().Any("id", work.Id).Str("title", work.Title).Int("pages", work.PageCount).Msg("start work")
+		go getBookmarkContent(mCh, dCh, work, wg)
 	}
 	*offset += limit
 	return bookmark.Total, nil
 }
 
-func getBookmarkContent(mCh chan<- request.BookmarkWorkItem, ch chan<- DownloadTask, work request.BookmarkWorkItem) {
+func getBookmarkContent(mCh chan<- request.BookmarkWorkItem, ch chan<- DownloadTask, work request.BookmarkWorkItem, wg *sync.WaitGroup) {
 	idRange := viper.GetStringSlice("patch.id-range")
 	output := viper.GetString("job.output")
 
@@ -72,6 +73,9 @@ func getBookmarkContent(mCh chan<- request.BookmarkWorkItem, ch chan<- DownloadT
 	idStr := strconv.FormatUint(id, 10)
 	if idRange != nil && !slices.Contains(idRange, idStr) {
 		return
+	}
+	if wg != nil {
+		wg.Add(1)
 	}
 	mCh <- work
 
@@ -87,7 +91,7 @@ func getBookmarkContent(mCh chan<- request.BookmarkWorkItem, ch chan<- DownloadT
 
 	if _, err := os.Stat(cp); !os.IsNotExist(err) {
 		if idRange == nil || !slices.Contains(idRange, idStr) {
-			log.Debug().Uint64("id", id).Msg("target is latest, skip")
+			log.Trace().Uint64("id", id).Msg("target is latest, skip")
 			return
 		}
 	}
@@ -99,24 +103,24 @@ func getBookmarkContent(mCh chan<- request.BookmarkWorkItem, ch chan<- DownloadT
 
 	switch work.IllustType {
 	case 0:
-		err := getImages(ch, idStr, cp)
+		err := getImages(ch, idStr, cp, wg)
 		if err != nil {
 			log.Error().Err(err).Msg("get images")
 		}
 	case 1:
-		err := getImages(ch, idStr, cp)
+		err := getImages(ch, idStr, cp, wg)
 		if err != nil {
 			log.Error().Err(err).Msg("get images")
 		}
 	case 2:
-		err := getVideos(ch, idStr, cp)
+		err := getVideos(ch, idStr, cp, wg)
 		if err != nil {
 			log.Error().Err(err).Msg("get videos")
 		}
 	}
 }
 
-func getImages(ch chan<- DownloadTask, id string, cp string) error {
+func getImages(ch chan<- DownloadTask, id string, cp string, wg *sync.WaitGroup) error {
 	host := viper.GetString("job.host")
 	version := viper.GetString("job.version")
 	cookie := viper.GetString("job.cookie")
@@ -141,6 +145,9 @@ func getImages(ch chan<- DownloadTask, id string, cp string) error {
 		return err
 	}
 
+	if wg != nil {
+		wg.Add(len(*items))
+	}
 	for _, item := range *items {
 		ch <- DownloadTask{
 			Id:   id,
@@ -151,7 +158,7 @@ func getImages(ch chan<- DownloadTask, id string, cp string) error {
 	return nil
 }
 
-func getVideos(ch chan<- DownloadTask, id string, cp string) error {
+func getVideos(ch chan<- DownloadTask, id string, cp string, wg *sync.WaitGroup) error {
 	host := viper.GetString("job.host")
 	version := viper.GetString("job.version")
 	cookie := viper.GetString("job.cookie")
@@ -176,6 +183,9 @@ func getVideos(ch chan<- DownloadTask, id string, cp string) error {
 		return err
 	}
 
+	if wg != nil {
+		wg.Add(1)
+	}
 	ch <- DownloadTask{
 		Id:   id,
 		Url:  item.OriginalSrc,
