@@ -1,4 +1,4 @@
-FROM golang:1.21-alpine as build
+FROM golang:1.22-alpine as build
 RUN apk add --no-cache --update build-base
 ENV GO111MODULE=on
 WORKDIR /app
@@ -8,4 +8,4 @@ RUN make
 FROM alpine as final
 WORKDIR /app
 COPY --from=build /app/target .
-ENTRYPOINT ["./grabber"]
+ENTRYPOINT ["./grabber", "-d"]
