@@ -163,6 +163,9 @@ func onceRecord(sts SqlxStmts, wi request.BookmarkWorkItem, wg *sync.WaitGroup) 
 			}
 		} else {
 			ut, err := time.Parse("2006-01-02T15:04:05-07:00", wi.UpdateDate)
+			if err != nil {
+				ut = time.Now()
+			}
 			uts := ut.UTC().Unix()
 			if err == nil && uts == w.UpdateDate {
 				return

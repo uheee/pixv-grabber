@@ -21,7 +21,12 @@ func GetRawFromHttpReq(url string, headers map[string]string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func(b io.ReadCloser) {
+		err := b.Close()
+		if err != nil {
+			slog.Error("unable to close http reader", "error", err)
+		}
+	}(res.Body)
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
