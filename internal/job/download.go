@@ -1,9 +1,10 @@
 package job
 
 import (
-	"github.com/rs/zerolog/log"
+	"context"
 	"github.com/spf13/viper"
 	"github.com/uheee/pixiv-grabber/internal/request"
+	"log/slog"
 	"net/url"
 	"os"
 	"path"
@@ -19,13 +20,13 @@ func StartDownload(ch <-chan DownloadTask, wg *sync.WaitGroup) {
 }
 
 func onceDownload(task DownloadTask, host string, wg *sync.WaitGroup) {
-	log.Trace().Str("id", task.Id).Msg("downloading")
+	slog.Debug("downloading", "id", task.Id)
 	if wg != nil {
 		defer wg.Done()
 	}
 	taskUrl, err := url.Parse(task.Url)
 	if err != nil {
-		log.Error().Err(err).Msg("download task")
+		slog.Error("download task", "error", err)
 		return
 	}
 	items := strings.Split(taskUrl.Path, "/")
@@ -35,18 +36,18 @@ func onceDownload(task DownloadTask, host string, wg *sync.WaitGroup) {
 		"Referer":    host,
 	})
 	if err != nil {
-		log.Error().Err(err).Msg("download task")
+		slog.Error("download task", "error", err)
 		return
 	}
 	file, err := os.OpenFile(path.Join(task.Path, filename), os.O_WRONLY|os.O_CREATE, os.ModePerm)
 	if err != nil {
-		log.Error().Err(err).Msg("download task")
+		slog.Error("download task", "error", err)
 		return
 	}
 	_, err = file.Write(raw)
 	if err != nil {
-		log.Error().Err(err).Msg("download task")
+		slog.Error("download task", "error", err)
 		return
 	}
-	log.Info().Str("id", task.Id).Str("url", task.Url).Msg("download")
+	slog.Log(context.Background(), -1, "download", "id", task.Id, "url", task.Url)
 }

@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 	"github.com/uheee/pixiv-grabber/internal/request"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -73,11 +73,11 @@ func StartRecord(mCh <-chan request.BookmarkWorkItem, wg *sync.WaitGroup) {
 	dbFile := filepath.Join(output, "manifest")
 	err := os.MkdirAll(output, os.ModePerm)
 	if err != nil {
-		log.Error().Err(err).Msg("create output dir")
+		slog.Error("create output dir", "error", err)
 	}
 	db, err := sqlx.Open("sqlite3", dbFile)
 	if err != nil {
-		log.Error().Err(err).Str("db", dbFile).Msg("unable to connect to db")
+		slog.Error("unable to connect to db", "error", err, "db", dbFile)
 		return
 	}
 	db.MustExec(workSchema)
@@ -123,10 +123,10 @@ func onceRecord(sts SqlxStmts, wi request.BookmarkWorkItem, wg *sync.WaitGroup) 
 			w.MaskedDate = -1
 		}
 
-		log.Warn().Uint64("id", w.Id).Str("title", w.Title).Msg("new work")
+		slog.Warn("new work", "id", w.Id, "title", w.Title)
 		_, err = sts.Insert.Exec(w)
 		if err != nil {
-			log.Error().Err(err).Msg("unable to insert work to db")
+			slog.Error("unable to insert work to db", "error", err)
 		}
 	} else if w.MaskedDate != -1 {
 		if wi.IsMasked {
@@ -146,20 +146,20 @@ func onceRecord(sts SqlxStmts, wi request.BookmarkWorkItem, wg *sync.WaitGroup) 
 			}
 			w.MaskedDate = -1
 
-			log.Warn().Uint64("id", w.Id).Str("title", w.Title).Msg("masked -> unmasked")
+			slog.Warn("masked -> unmasked", "id", w.Id, "title", w.Title)
 			_, err = sts.Update1.Exec(w)
 			if err != nil {
-				log.Error().Err(err).Msg("unable to update work to db")
+				slog.Error("unable to update work to db", "error", err)
 			}
 		}
 	} else {
 		if wi.IsMasked {
 			w.MaskedDate = time.Now().UTC().Unix()
 
-			log.Warn().Uint64("id", w.Id).Str("title", w.Title).Msg("unmasked -> masked")
+			slog.Warn("unmasked -> masked", "id", w.Id, "title", w.Title)
 			_, err = sts.Update2.Exec(w)
 			if err != nil {
-				log.Error().Err(err).Msg("unable to update work to db")
+				slog.Error("unable to update work to db", "error", err)
 			}
 		} else {
 			ut, err := time.Parse("2006-01-02T15:04:05-07:00", wi.UpdateDate)
@@ -176,10 +176,10 @@ func onceRecord(sts SqlxStmts, wi request.BookmarkWorkItem, wg *sync.WaitGroup) 
 			w.PageCount = wi.PageCount
 			w.UpdateDate = uts
 
-			log.Warn().Uint64("id", w.Id).Str("title", w.Title).Msg("update")
+			slog.Warn("update", "id", w.Id, "title", w.Title)
 			_, err = sts.Update1.Exec(w)
 			if err != nil {
-				log.Error().Err(err).Msg("unable to update work to db")
+				slog.Error("unable to update work to db", "error", err)
 			}
 		}
 	}
@@ -195,7 +195,7 @@ type SqlxStmts struct {
 func prepareStmts(db *sqlx.DB, sql string, errMsg string) *sqlx.NamedStmt {
 	stmt, err := db.PrepareNamed(sql)
 	if err != nil {
-		log.Error().Err(err).Msg(errMsg)
+		slog.Error(errMsg, "error", err)
 		panic(err)
 	}
 	return stmt

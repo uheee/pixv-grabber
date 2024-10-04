@@ -6,9 +6,9 @@ toolchain go1.23.1
 
 require (
 	github.com/jmoiron/sqlx v1.4.0
+	github.com/lmittmann/tint v1.0.5
 	github.com/mattn/go-sqlite3 v1.14.23
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/rs/zerolog v1.33.0
 	github.com/spf13/viper v1.19.0
 	github.com/urfave/cli/v2 v2.27.4
 )
@@ -18,8 +18,6 @@ require (
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
-	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect

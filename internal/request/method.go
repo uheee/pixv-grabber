@@ -3,8 +3,8 @@ package request
 import (
 	"encoding/json"
 	"errors"
-	"github.com/rs/zerolog/log"
 	"io"
+	"log/slog"
 	"net/http"
 )
 
@@ -35,7 +35,7 @@ func GetJsonFromHttpReq[TBody any](url string, headers map[string]string) (*TBod
 		return nil, err
 	}
 	j := string(body[:])
-	log.Debug().Str("json", j).Msg("get json from http req")
+	slog.Debug("get json from http req", "json", j)
 	var result Response[TBody]
 	err = json.Unmarshal(body, &result)
 	if err != nil {

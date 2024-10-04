@@ -1,9 +1,10 @@
 package job
 
 import (
-	"github.com/rs/zerolog/log"
+	"context"
 	"github.com/spf13/viper"
 	"github.com/uheee/pixiv-grabber/internal/request"
+	"log/slog"
 	"net/url"
 	"os"
 	"path"
@@ -18,7 +19,7 @@ func ProcessHttp(mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, w
 	for {
 		total, err := getBookmark(mCh, dCh, &offset, wg)
 		if err != nil {
-			log.Error().Err(err).Msg("get bookmark")
+			slog.Error("get bookmark", "error", err)
 		}
 		if offset >= total {
 			break
@@ -58,7 +59,7 @@ func getBookmark(mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, o
 	}
 
 	for _, work := range bookmark.Works {
-		log.Trace().Any("id", work.Id).Str("title", work.Title).Int("pages", work.PageCount).Msg("start work")
+		slog.Log(context.Background(), -3, "start work", "id", work.Id, "title", work.Title, "pages", work.PageCount)
 		go getBookmarkContent(mCh, dCh, work, wg)
 	}
 	*offset += limit
@@ -81,7 +82,7 @@ func getBookmarkContent(mCh chan<- request.BookmarkWorkItem, ch chan<- DownloadT
 
 	ut, err := time.Parse("2006-01-02T15:04:05-07:00", work.UpdateDate)
 	if err != nil {
-		log.Error().Err(err).Msg("parse update time")
+		slog.Error("parse update time", "error", err)
 		return
 	}
 	cp := path.Join(output, idStr, ut.UTC().Format("20060102150405"))
@@ -91,31 +92,31 @@ func getBookmarkContent(mCh chan<- request.BookmarkWorkItem, ch chan<- DownloadT
 
 	if _, err := os.Stat(cp); !os.IsNotExist(err) {
 		if idRange == nil || !slices.Contains(idRange, idStr) {
-			log.Trace().Uint64("id", id).Msg("target is latest, skip")
+			slog.Log(context.Background(), -3, "target is latest, skip", "id", id)
 			return
 		}
 	}
 
 	err = os.MkdirAll(cp, os.ModePerm)
 	if err != nil {
-		log.Error().Err(err).Msg("create latest dir")
+		slog.Error("create latest dir", "error", err)
 	}
 
 	switch work.IllustType {
 	case 0:
 		err := getImages(ch, idStr, cp, wg)
 		if err != nil {
-			log.Error().Err(err).Msg("get images")
+			slog.Error("get images", "error", err)
 		}
 	case 1:
 		err := getImages(ch, idStr, cp, wg)
 		if err != nil {
-			log.Error().Err(err).Msg("get images")
+			slog.Error("get images", "error", err)
 		}
 	case 2:
 		err := getVideos(ch, idStr, cp, wg)
 		if err != nil {
-			log.Error().Err(err).Msg("get videos")
+			slog.Error("get videos", "error", err)
 		}
 	}
 }

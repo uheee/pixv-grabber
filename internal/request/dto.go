@@ -1,7 +1,7 @@
 package request
 
 import (
-	"github.com/rs/zerolog/log"
+	"log/slog"
 	"reflect"
 	"strconv"
 )
@@ -34,7 +34,7 @@ func (s *BookmarkWorkItem) GetId() uint64 {
 	case reflect.String:
 		id, err := strconv.ParseUint(s.Id.(string), 10, 64)
 		if err != nil {
-			log.Error().Err(err).Any("id", s.Id).Msg("new type of id")
+			slog.Error("new type of id", "error", err, "id", s.Id)
 		}
 		return id
 	case reflect.Float64:

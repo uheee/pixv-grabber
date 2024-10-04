@@ -1,16 +1,17 @@
 package main
 
 import (
+	"context"
 	"errors"
+	"github.com/lmittmann/tint"
 	"github.com/robfig/cron/v3"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 	"github.com/uheee/pixiv-grabber/internal/job"
-	"github.com/uheee/pixiv-grabber/internal/logger"
 	"github.com/uheee/pixiv-grabber/internal/manifest"
 	"github.com/uheee/pixiv-grabber/internal/request"
 	"github.com/uheee/pixiv-grabber/internal/utils"
 	"github.com/urfave/cli/v2"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -34,7 +35,7 @@ func main() {
 		},
 	}
 	if err := app.Run(os.Args); err != nil {
-		log.Fatal().Err(err)
+		slog.Log(context.Background(), -10, "fatal error", "error", err)
 	}
 }
 
@@ -43,7 +44,7 @@ func cliAction(context *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	logger.InitLog()
+	configLog()
 	err = configProxy()
 	if err != nil {
 		return err
@@ -54,10 +55,10 @@ func cliAction(context *cli.Context) error {
 
 	detach := context.Bool("detach")
 	if !detach {
-		log.Warn().Msg("once mode")
+		slog.Warn("once mode")
 		return onceTask(mCh, dCh)
 	} else {
-		log.Warn().Msg("cron mode")
+		slog.Warn("cron mode")
 		return cronTask(mCh, dCh)
 	}
 }
@@ -74,6 +75,7 @@ func onceTask(mCh chan request.BookmarkWorkItem, dCh chan job.DownloadTask) erro
 	go job.StartDownload(dCh, wg)
 	time.Sleep(mwt)
 	wg.Wait()
+	slog.Warn("done")
 	return nil
 }
 
@@ -82,9 +84,9 @@ func cronTask(mCh chan request.BookmarkWorkItem, dCh chan job.DownloadTask) erro
 	ce := viper.GetString("job.cron")
 	_, err := c.AddFunc(ce, func() {
 		ct := time.Now()
-		log.Info().Time("current", ct).Msg("start cron job")
+		slog.Info("start cron job", "current", ct)
 		job.ProcessHttp(mCh, dCh, nil)
-		log.Info().Time("current", ct).Msg("finish cron job")
+		slog.Info("finish cron job", "current", ct)
 	})
 	if err != nil {
 		return err
@@ -106,4 +108,22 @@ func configProxy() error {
 		}
 	}
 	return nil
+}
+
+func configLog() {
+	level := slog.Level(viper.GetInt("log.level"))
+	w := os.Stdout
+	logger := slog.New(tint.NewHandler(w, &tint.Options{
+		Level:      level,
+		TimeFormat: time.RFC3339,
+		ReplaceAttr: func(groups []string, attr slog.Attr) slog.Attr {
+			if err, ok := attr.Value.Any().(error); ok {
+				err := tint.Err(err)
+				err.Key = attr.Key
+				return err
+			}
+			return attr
+		},
+	}))
+	slog.SetDefault(logger)
 }
