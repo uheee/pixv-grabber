@@ -92,7 +92,7 @@ func getBookmarkContent(mCh chan<- request.BookmarkWorkItem, ch chan<- DownloadT
 
 	if _, err := os.Stat(cp); !os.IsNotExist(err) {
 		if idRange == nil || !slices.Contains(idRange, idStr) {
-			slog.Log(context.Background(), -3, "target is latest, skip", "id", id)
+			slog.Log(context.Background(), -7, "target is latest, skip", "id", id)
 			return
 		}
 	}

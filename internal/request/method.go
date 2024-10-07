@@ -1,6 +1,7 @@
 package request
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -40,7 +41,7 @@ func GetJsonFromHttpReq[TBody any](url string, headers map[string]string) (*TBod
 		return nil, err
 	}
 	j := string(body[:])
-	slog.Debug("get json from http req", "json", j)
+	slog.Log(context.Background(), -6, "get json from http req", "json", j)
 	var result Response[TBody]
 	err = json.Unmarshal(body, &result)
 	if err != nil {
