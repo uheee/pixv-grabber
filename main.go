@@ -21,16 +21,22 @@ import (
 
 func main() {
 	app := &cli.App{
-		Name:   "PIXIV Grabber",
-		Usage:  "Fetch and download PIXIV content",
-		Action: cliAction,
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:     "detach",
-				Usage:    "Run pixiv-grabber as a background service",
-				Required: false,
-				Value:    false,
-				Aliases:  []string{"d"},
+		Name:  "PIXIV Grabber",
+		Usage: "Fetch and download PIXIV content",
+		Commands: []*cli.Command{
+			{
+				Name:   "sync",
+				Usage:  "synchronize content from PIXIV website",
+				Action: syncAction,
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:     "detach",
+						Usage:    "running synchronizer as a background service",
+						Required: false,
+						Value:    false,
+						Aliases:  []string{"d"},
+					},
+				},
 			},
 		},
 	}
@@ -39,7 +45,7 @@ func main() {
 	}
 }
 
-func cliAction(context *cli.Context) error {
+func syncAction(context *cli.Context) error {
 	err := utils.InitConfig()
 	if err != nil {
 		return err

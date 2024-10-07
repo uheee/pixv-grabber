@@ -8,4 +8,4 @@ RUN make
 FROM alpine as final
 WORKDIR /app
 COPY --from=build /app/target .
-ENTRYPOINT ["./grabber", "-d"]
+ENTRYPOINT ["./grabber", "sync", "-d"]
