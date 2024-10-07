@@ -1,6 +1,7 @@
 package manifest
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
@@ -9,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -31,8 +33,9 @@ create index if not exists work_title_index on work (title);
 create index if not exists work_update_date_index on work (update_date desc);
 `
 
-var queryPreparation = `
-select * from work where id = :id`
+var queryPreparation = `select * from work where id = :id`
+
+var queryAllPreparation = `select * from work`
 
 var insertPreparation = `
 insert into work
@@ -82,10 +85,10 @@ func StartRecord(mCh <-chan request.BookmarkWorkItem, wg *sync.WaitGroup) {
 	}
 	db.MustExec(workSchema)
 	sts := SqlxStmts{
-		Query:   prepareStmts(db, queryPreparation, "unable to prepare query"),
-		Insert:  prepareStmts(db, insertPreparation, "unable to prepare insert"),
-		Update1: prepareStmts(db, updatePreparation1, "unable to prepare update 1"),
-		Update2: prepareStmts(db, updatePreparation2, "unable to prepare update 2"),
+		Query:   prepareStmt(db, queryPreparation, "unable to prepare query"),
+		Insert:  prepareStmt(db, insertPreparation, "unable to prepare insert"),
+		Update1: prepareStmt(db, updatePreparation1, "unable to prepare update 1"),
+		Update2: prepareStmt(db, updatePreparation2, "unable to prepare update 2"),
 	}
 	for wi := range mCh {
 		onceRecord(sts, wi, wg)
@@ -195,11 +198,70 @@ type SqlxStmts struct {
 	Update2 *sqlx.NamedStmt
 }
 
-func prepareStmts(db *sqlx.DB, sql string, errMsg string) *sqlx.NamedStmt {
+func prepareStmt(db *sqlx.DB, sql string, errMsg string) *sqlx.NamedStmt {
 	stmt, err := db.PrepareNamed(sql)
 	if err != nil {
 		slog.Error(errMsg, "error", err)
 		panic(err)
 	}
 	return stmt
+}
+
+func StartRead(ch chan<- WorkModel, wg *sync.WaitGroup) {
+	output := viper.GetString("job.output")
+	dbFile := filepath.Join(output, "manifest")
+	db, err := sqlx.Open("sqlite3", dbFile)
+	if err != nil {
+		slog.Error("unable to connect to db", "error", err, "db", dbFile)
+		return
+	}
+	rows, err := db.Queryx(queryAllPreparation)
+	if err != nil {
+		slog.Error("unable to query manifest", "error", err)
+		return
+	}
+	slog.Info("start walk db assets")
+	for rows.Next() {
+		var w WorkModel
+		err := rows.StructScan(&w)
+		if err != nil {
+			slog.Error("unable to scan", "error", err)
+			continue
+		}
+		slog.Debug("get work model", "id", w.Id, "title", w.Title, "type", w.IllustType, "count", w.PageCount)
+		wg.Add(1)
+		ch <- w
+	}
+}
+
+func StartCheck(ch <-chan WorkModel, wg *sync.WaitGroup) {
+	output := viper.GetString("job.output")
+	for w := range ch {
+		onceCheck(w, output, wg)
+	}
+}
+
+func onceCheck(w WorkModel, output string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	ut := time.Unix(w.UpdateDate, 0)
+	path := filepath.Join(output, strconv.FormatUint(w.Id, 10), ut.UTC().Format("20060102150405"))
+	dir, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			slog.Log(context.Background(), -2, "dir does not exist", "path", path)
+		} else {
+			slog.Error("unable to open dir", "path", path, "error", err)
+		}
+		return
+	}
+	files, err := dir.Readdir(0)
+	if err != nil {
+		slog.Error("unable to read dir", "path", path, "error", err)
+		return
+	}
+	ac := len(files)
+	ec := w.PageCount
+	if ac < ec {
+		slog.Warn("count mismatch", "id", w.Id, "title", w.Title, "type", w.IllustType, "db-count", ec, "dir-count", ac)
+	}
 }
