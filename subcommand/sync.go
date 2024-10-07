@@ -26,11 +26,18 @@ func SyncCommand() *cli.Command {
 				Value:    false,
 				Aliases:  []string{"d"},
 			},
+			&cli.BoolFlag{
+				Name:     "check",
+				Usage:    "check local asset integrity and download all missing files",
+				Required: false,
+				Value:    false,
+				Aliases:  []string{"c"},
+			},
 		},
 	}
 }
 
-func syncAction(context *cli.Context) error {
+func syncAction(cc *cli.Context) error {
 	err := utils.InitConfig()
 	if err != nil {
 		return err
@@ -44,24 +51,24 @@ func syncAction(context *cli.Context) error {
 	mCh := make(chan request.BookmarkWorkItem)
 	dCh := make(chan job.DownloadTask)
 
-	detach := context.Bool("detach")
+	detach := cc.Bool("detach")
 	if !detach {
 		slog.Warn("once mode")
-		return onceTask(mCh, dCh)
+		return onceTask(cc, mCh, dCh)
 	} else {
 		slog.Warn("cron mode")
-		return cronTask(mCh, dCh)
+		return cronTask(cc, mCh, dCh)
 	}
 }
 
-func onceTask(mCh chan request.BookmarkWorkItem, dCh chan job.DownloadTask) error {
+func onceTask(cc *cli.Context, mCh chan request.BookmarkWorkItem, dCh chan job.DownloadTask) error {
 	mwts := viper.GetString("job.max-wait-time")
 	mwt, err := time.ParseDuration(mwts)
 	if err != nil {
 		mwt = 5 * time.Second
 	}
 	wg := &sync.WaitGroup{}
-	go job.ProcessHttp(mCh, dCh, wg)
+	go job.ProcessHttp(cc, mCh, dCh, wg)
 	go manifest.StartRecord(mCh, wg)
 	go job.StartDownload(dCh, wg)
 	time.Sleep(mwt)
@@ -70,13 +77,13 @@ func onceTask(mCh chan request.BookmarkWorkItem, dCh chan job.DownloadTask) erro
 	return nil
 }
 
-func cronTask(mCh chan request.BookmarkWorkItem, dCh chan job.DownloadTask) error {
+func cronTask(cc *cli.Context, mCh chan request.BookmarkWorkItem, dCh chan job.DownloadTask) error {
 	c := cron.New()
 	ce := viper.GetString("job.cron")
 	_, err := c.AddFunc(ce, func() {
 		ct := time.Now()
 		slog.Info("start cron job", "current", ct)
-		job.ProcessHttp(mCh, dCh, nil)
+		job.ProcessHttp(cc, mCh, dCh, nil)
 		slog.Info("finish cron job", "current", ct)
 	})
 	if err != nil {

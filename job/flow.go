@@ -3,21 +3,21 @@ package job
 import (
 	"context"
 	"github.com/spf13/viper"
-	request2 "github.com/uheee/pixiv-grabber/request"
+	"github.com/uheee/pixiv-grabber/request"
+	"github.com/urfave/cli/v2"
 	"log/slog"
 	"net/url"
 	"os"
 	"path"
-	"slices"
 	"strconv"
 	"sync"
 	"time"
 )
 
-func ProcessHttp(mCh chan<- request2.BookmarkWorkItem, dCh chan<- DownloadTask, wg *sync.WaitGroup) {
+func ProcessHttp(cc *cli.Context, mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, wg *sync.WaitGroup) {
 	offset := 0
 	for {
-		total, err := getBookmark(mCh, dCh, &offset, wg)
+		total, err := getBookmark(cc, mCh, dCh, &offset, wg)
 		if err != nil {
 			slog.Error("get bookmark", "error", err)
 		}
@@ -27,7 +27,7 @@ func ProcessHttp(mCh chan<- request2.BookmarkWorkItem, dCh chan<- DownloadTask, 
 	}
 }
 
-func getBookmark(mCh chan<- request2.BookmarkWorkItem, dCh chan<- DownloadTask, offset *int, wg *sync.WaitGroup) (int, error) {
+func getBookmark(cc *cli.Context, mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, offset *int, wg *sync.WaitGroup) (int, error) {
 	host := viper.GetString("job.host")
 	user := viper.GetString("job.user")
 	version := viper.GetString("job.version")
@@ -50,7 +50,7 @@ func getBookmark(mCh chan<- request2.BookmarkWorkItem, dCh chan<- DownloadTask, 
 	query.Set("limit", strconv.Itoa(limit))
 	u.RawQuery = query.Encode()
 	reqUrl := u.String()
-	bookmark, err := request2.GetJsonFromHttpReq[request2.BookmarkBody](reqUrl, map[string]string{
+	bookmark, err := request.GetJsonFromHttpReq[request.BookmarkBody](reqUrl, map[string]string{
 		"User-Agent": "Mozilla/5.0",
 		"Cookie":     cookie,
 	})
@@ -60,21 +60,17 @@ func getBookmark(mCh chan<- request2.BookmarkWorkItem, dCh chan<- DownloadTask, 
 
 	for _, work := range bookmark.Works {
 		slog.Log(context.Background(), -3, "start work", "id", work.Id, "title", work.Title, "pages", work.PageCount)
-		go getBookmarkContent(mCh, dCh, work, wg)
+		go getBookmarkContent(cc, mCh, dCh, work, wg)
 	}
 	*offset += limit
 	return bookmark.Total, nil
 }
 
-func getBookmarkContent(mCh chan<- request2.BookmarkWorkItem, ch chan<- DownloadTask, work request2.BookmarkWorkItem, wg *sync.WaitGroup) {
-	idRange := viper.GetStringSlice("patch.id-range")
+func getBookmarkContent(cc *cli.Context, mCh chan<- request.BookmarkWorkItem, ch chan<- DownloadTask, work request.BookmarkWorkItem, wg *sync.WaitGroup) {
 	output := viper.GetString("job.output")
 
 	id := work.GetId()
 	idStr := strconv.FormatUint(id, 10)
-	if idRange != nil && !slices.Contains(idRange, idStr) {
-		return
-	}
 	if wg != nil {
 		wg.Add(1)
 	}
@@ -90,11 +86,9 @@ func getBookmarkContent(mCh chan<- request2.BookmarkWorkItem, ch chan<- Download
 		return
 	}
 
-	if _, err := os.Stat(cp); !os.IsNotExist(err) {
-		if idRange == nil || !slices.Contains(idRange, idStr) {
-			slog.Log(context.Background(), -7, "target is latest, skip", "id", id)
-			return
-		}
+	if _, err := os.Stat(cp); !cc.Bool("check") && !os.IsNotExist(err) {
+		slog.Log(context.Background(), -7, "target is latest, skip", "id", id)
+		return
 	}
 
 	err = os.MkdirAll(cp, os.ModePerm)
@@ -138,7 +132,7 @@ func getImages(ch chan<- DownloadTask, id string, cp string, wg *sync.WaitGroup)
 	query.Set("lang", lang)
 	u.RawQuery = query.Encode()
 	reqUrl := u.String()
-	items, err := request2.GetJsonFromHttpReq[[]request2.ImageItem](reqUrl, map[string]string{
+	items, err := request.GetJsonFromHttpReq[[]request.ImageItem](reqUrl, map[string]string{
 		"User-Agent": "Mozilla/5.0",
 		"Cookie":     cookie,
 	})
@@ -176,7 +170,7 @@ func getVideos(ch chan<- DownloadTask, id string, cp string, wg *sync.WaitGroup)
 	query.Set("lang", lang)
 	u.RawQuery = query.Encode()
 	reqUrl := u.String()
-	item, err := request2.GetJsonFromHttpReq[request2.VideoItem](reqUrl, map[string]string{
+	item, err := request.GetJsonFromHttpReq[request.VideoItem](reqUrl, map[string]string{
 		"User-Agent": "Mozilla/5.0",
 		"Cookie":     cookie,
 	})

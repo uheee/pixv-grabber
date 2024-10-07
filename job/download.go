@@ -39,7 +39,12 @@ func onceDownload(task DownloadTask, host string, wg *sync.WaitGroup) {
 		slog.Error("download task", "error", err)
 		return
 	}
-	file, err := os.OpenFile(path.Join(task.Path, filename), os.O_WRONLY|os.O_CREATE, os.ModePerm)
+	ff := path.Join(task.Path, filename)
+	if _, err = os.Stat(ff); !os.IsNotExist(err) {
+		slog.Debug("download file already exists", "file", ff)
+		return
+	}
+	file, err := os.OpenFile(ff, os.O_WRONLY|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		slog.Error("download task", "error", err)
 		return

@@ -13,7 +13,7 @@ import (
 func CheckCommand() *cli.Command {
 	return &cli.Command{
 		Name:   "check",
-		Usage:  "check local asset integrity ",
+		Usage:  "check local asset integrity",
 		Action: checkAction,
 	}
 }
