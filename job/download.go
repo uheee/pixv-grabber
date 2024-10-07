@@ -3,7 +3,7 @@ package job
 import (
 	"context"
 	"github.com/spf13/viper"
-	"github.com/uheee/pixiv-grabber/internal/request"
+	"github.com/uheee/pixiv-grabber/request"
 	"log/slog"
 	"net/url"
 	"os"

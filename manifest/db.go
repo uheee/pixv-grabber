@@ -5,7 +5,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/viper"
-	"github.com/uheee/pixiv-grabber/internal/request"
+	"github.com/uheee/pixiv-grabber/request"
 	"log/slog"
 	"os"
 	"path/filepath"

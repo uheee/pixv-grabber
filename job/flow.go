@@ -3,7 +3,7 @@ package job
 import (
 	"context"
 	"github.com/spf13/viper"
-	"github.com/uheee/pixiv-grabber/internal/request"
+	request2 "github.com/uheee/pixiv-grabber/request"
 	"log/slog"
 	"net/url"
 	"os"
@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func ProcessHttp(mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, wg *sync.WaitGroup) {
+func ProcessHttp(mCh chan<- request2.BookmarkWorkItem, dCh chan<- DownloadTask, wg *sync.WaitGroup) {
 	offset := 0
 	for {
 		total, err := getBookmark(mCh, dCh, &offset, wg)
@@ -27,7 +27,7 @@ func ProcessHttp(mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, w
 	}
 }
 
-func getBookmark(mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, offset *int, wg *sync.WaitGroup) (int, error) {
+func getBookmark(mCh chan<- request2.BookmarkWorkItem, dCh chan<- DownloadTask, offset *int, wg *sync.WaitGroup) (int, error) {
 	host := viper.GetString("job.host")
 	user := viper.GetString("job.user")
 	version := viper.GetString("job.version")
@@ -50,7 +50,7 @@ func getBookmark(mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, o
 	query.Set("limit", strconv.Itoa(limit))
 	u.RawQuery = query.Encode()
 	reqUrl := u.String()
-	bookmark, err := request.GetJsonFromHttpReq[request.BookmarkBody](reqUrl, map[string]string{
+	bookmark, err := request2.GetJsonFromHttpReq[request2.BookmarkBody](reqUrl, map[string]string{
 		"User-Agent": "Mozilla/5.0",
 		"Cookie":     cookie,
 	})
@@ -66,7 +66,7 @@ func getBookmark(mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, o
 	return bookmark.Total, nil
 }
 
-func getBookmarkContent(mCh chan<- request.BookmarkWorkItem, ch chan<- DownloadTask, work request.BookmarkWorkItem, wg *sync.WaitGroup) {
+func getBookmarkContent(mCh chan<- request2.BookmarkWorkItem, ch chan<- DownloadTask, work request2.BookmarkWorkItem, wg *sync.WaitGroup) {
 	idRange := viper.GetStringSlice("patch.id-range")
 	output := viper.GetString("job.output")
 
@@ -138,7 +138,7 @@ func getImages(ch chan<- DownloadTask, id string, cp string, wg *sync.WaitGroup)
 	query.Set("lang", lang)
 	u.RawQuery = query.Encode()
 	reqUrl := u.String()
-	items, err := request.GetJsonFromHttpReq[[]request.ImageItem](reqUrl, map[string]string{
+	items, err := request2.GetJsonFromHttpReq[[]request2.ImageItem](reqUrl, map[string]string{
 		"User-Agent": "Mozilla/5.0",
 		"Cookie":     cookie,
 	})
@@ -176,7 +176,7 @@ func getVideos(ch chan<- DownloadTask, id string, cp string, wg *sync.WaitGroup)
 	query.Set("lang", lang)
 	u.RawQuery = query.Encode()
 	reqUrl := u.String()
-	item, err := request.GetJsonFromHttpReq[request.VideoItem](reqUrl, map[string]string{
+	item, err := request2.GetJsonFromHttpReq[request2.VideoItem](reqUrl, map[string]string{
 		"User-Agent": "Mozilla/5.0",
 		"Cookie":     cookie,
 	})
