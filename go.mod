@@ -5,6 +5,7 @@ go 1.22.0
 toolchain go1.23.1
 
 require (
+	github.com/google/uuid v1.4.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/lmittmann/tint v1.0.5
 	github.com/mattn/go-sqlite3 v1.14.23

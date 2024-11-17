@@ -26,32 +26,41 @@ func onceDownload(task DownloadTask, host string, wg *sync.WaitGroup) {
 	}
 	taskUrl, err := url.Parse(task.Url)
 	if err != nil {
-		slog.Error("download task", "error", err)
+		slog.Error("unable to parse download url", "error", err, "id", task.Id, "url", task.Url, "path", task.Path)
 		return
 	}
 	items := strings.Split(taskUrl.Path, "/")
 	filename := items[len(items)-1]
-	raw, err := request.GetRawFromHttpReq(task.Url, map[string]string{
-		"User-Agent": "Mozilla/5.0",
-		"Referer":    host,
-	})
-	if err != nil {
-		slog.Error("download task", "error", err)
-		return
-	}
 	ff := path.Join(task.Path, filename)
 	if _, err = os.Stat(ff); !os.IsNotExist(err) {
 		slog.Debug("download file already exists", "file", ff)
 		return
 	}
+	var raw []byte
+	maxRetry := viper.GetInt("download.max-retry")
+	for retry := range maxRetry {
+		raw, err = request.GetRawFromHttpReq(task.Url, map[string]string{
+			"User-Agent": "Mozilla/5.0",
+			"Referer":    host,
+		})
+		if err != nil {
+			slog.Error("unable to get raw from http req", "error", err, "retry", retry, "id", task.Id, "url", task.Url, "path", task.Path)
+		} else {
+			break
+		}
+	}
+	if err != nil {
+		slog.Error("unable to get raw from http req", "error", err, "id", task.Id, "url", task.Url, "path", task.Path)
+		return
+	}
 	file, err := os.OpenFile(ff, os.O_WRONLY|os.O_CREATE, os.ModePerm)
 	if err != nil {
-		slog.Error("download task", "error", err)
+		slog.Error("unable to open local file", "error", err, "id", task.Id, "url", task.Url, "path", task.Path)
 		return
 	}
 	_, err = file.Write(raw)
 	if err != nil {
-		slog.Error("download task", "error", err)
+		slog.Error("unable to write local file", "error", err, "id", task.Id, "url", task.Url, "path", task.Path)
 		return
 	}
 	slog.Log(context.Background(), -1, "download", "id", task.Id, "url", task.Url)

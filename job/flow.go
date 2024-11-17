@@ -2,22 +2,25 @@ package job
 
 import (
 	"context"
+	"github.com/jmoiron/sqlx"
 	"github.com/spf13/viper"
+	"github.com/uheee/pixiv-grabber/database"
 	"github.com/uheee/pixiv-grabber/request"
 	"github.com/urfave/cli/v2"
 	"log/slog"
 	"net/url"
 	"os"
 	"path"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
 )
 
-func ProcessHttp(cc *cli.Context, mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, wg *sync.WaitGroup) {
+func ProcessHttp(db *sqlx.DB, cc *cli.Context, mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, wg *sync.WaitGroup) {
 	offset := 0
 	for {
-		total, err := getBookmark(cc, mCh, dCh, &offset, wg)
+		total, err := getBookmark(db, cc, mCh, dCh, &offset, wg)
 		if err != nil {
 			slog.Error("get bookmark", "error", err)
 		}
@@ -27,7 +30,7 @@ func ProcessHttp(cc *cli.Context, mCh chan<- request.BookmarkWorkItem, dCh chan<
 	}
 }
 
-func getBookmark(cc *cli.Context, mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, offset *int, wg *sync.WaitGroup) (int, error) {
+func getBookmark(db *sqlx.DB, cc *cli.Context, mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, offset *int, wg *sync.WaitGroup) (int, error) {
 	host := viper.GetString("job.host")
 	user := viper.GetString("job.user")
 	version := viper.GetString("job.version")
@@ -58,7 +61,12 @@ func getBookmark(cc *cli.Context, mCh chan<- request.BookmarkWorkItem, dCh chan<
 		return -1, err
 	}
 
+	checkMode := cc.Bool("check")
+	downloadTaskWorkIds, err := database.GetAllDownloadTaskWorkIds(db)
 	for _, work := range bookmark.Works {
+		if checkMode && !slices.Contains(downloadTaskWorkIds, strconv.FormatUint(work.GetId(), 10)) {
+			continue
+		}
 		slog.Log(context.Background(), -3, "start work", "id", work.Id, "title", work.Title, "pages", work.PageCount)
 		go getBookmarkContent(cc, mCh, dCh, work, wg)
 	}
@@ -66,7 +74,7 @@ func getBookmark(cc *cli.Context, mCh chan<- request.BookmarkWorkItem, dCh chan<
 	return bookmark.Total, nil
 }
 
-func getBookmarkContent(cc *cli.Context, mCh chan<- request.BookmarkWorkItem, ch chan<- DownloadTask, work request.BookmarkWorkItem, wg *sync.WaitGroup) {
+func getBookmarkContent(cc *cli.Context, mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, work request.BookmarkWorkItem, wg *sync.WaitGroup) {
 	output := viper.GetString("job.output")
 
 	id := work.GetId()
@@ -98,17 +106,17 @@ func getBookmarkContent(cc *cli.Context, mCh chan<- request.BookmarkWorkItem, ch
 
 	switch work.IllustType {
 	case 0:
-		err := getImages(ch, idStr, cp, wg)
+		err := getImages(dCh, idStr, cp, wg)
 		if err != nil {
 			slog.Error("get images", "error", err)
 		}
 	case 1:
-		err := getImages(ch, idStr, cp, wg)
+		err := getImages(dCh, idStr, cp, wg)
 		if err != nil {
 			slog.Error("get images", "error", err)
 		}
 	case 2:
-		err := getVideos(ch, idStr, cp, wg)
+		err := getVideos(dCh, idStr, cp, wg)
 		if err != nil {
 			slog.Error("get videos", "error", err)
 		}

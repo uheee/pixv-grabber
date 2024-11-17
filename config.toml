@@ -1,5 +1,5 @@
 [log]
-level = 0
+level = -1
 
 [proxy]
 http = ''
@@ -13,3 +13,6 @@ cookie = ''
 lang = 'zh'
 limit = 100
 output = 'output'
+
+[download]
+max-retry = 5
