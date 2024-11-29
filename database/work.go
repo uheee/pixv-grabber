@@ -2,12 +2,13 @@ package database
 
 import (
 	"encoding/json"
-	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
-	"github.com/uheee/pixiv-grabber/request"
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/jmoiron/sqlx"
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/uheee/pixiv-grabber/request"
 )
 
 var sqlQueryWork = `select * from work where id = :id`

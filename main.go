@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"github.com/uheee/pixiv-grabber/subcommand"
-	"github.com/urfave/cli/v2"
 	"log/slog"
 	"os"
+
+	"github.com/uheee/pixiv-grabber/subcommand"
+	"github.com/urfave/cli/v2"
 )
 
 func main() {

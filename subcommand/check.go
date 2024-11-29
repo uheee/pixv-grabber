@@ -2,17 +2,18 @@ package subcommand
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/spf13/viper"
-	"github.com/uheee/pixiv-grabber/database"
-	"github.com/uheee/pixiv-grabber/utils"
-	"github.com/urfave/cli/v2"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/spf13/viper"
+	"github.com/uheee/pixiv-grabber/database"
+	"github.com/uheee/pixiv-grabber/utils"
+	"github.com/urfave/cli/v2"
 )
 
 func CheckCommand() *cli.Command {

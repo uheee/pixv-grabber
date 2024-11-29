@@ -1,9 +1,10 @@
 package database
 
 import (
-	"github.com/jmoiron/sqlx"
 	"log/slog"
 	"sync"
+
+	"github.com/jmoiron/sqlx"
 )
 
 var sqlQueryDownloadTask = `

@@ -1,11 +1,12 @@
 package database
 
 import (
-	"github.com/jmoiron/sqlx"
-	"github.com/spf13/viper"
 	"log/slog"
 	"os"
 	"path/filepath"
+
+	"github.com/jmoiron/sqlx"
+	"github.com/spf13/viper"
 )
 
 var workSchema = `

@@ -2,13 +2,14 @@ package utils
 
 import (
 	"errors"
-	"github.com/lmittmann/tint"
-	"github.com/spf13/viper"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"time"
+
+	"github.com/lmittmann/tint"
+	"github.com/spf13/viper"
 )
 
 func InitConfig() error {

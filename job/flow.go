@@ -2,11 +2,6 @@ package job
 
 import (
 	"context"
-	"github.com/jmoiron/sqlx"
-	"github.com/spf13/viper"
-	"github.com/uheee/pixiv-grabber/database"
-	"github.com/uheee/pixiv-grabber/request"
-	"github.com/urfave/cli/v2"
 	"log/slog"
 	"net/url"
 	"os"
@@ -15,6 +10,12 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/jmoiron/sqlx"
+	"github.com/spf13/viper"
+	"github.com/uheee/pixiv-grabber/database"
+	"github.com/uheee/pixiv-grabber/request"
+	"github.com/urfave/cli/v2"
 )
 
 func ProcessHttp(db *sqlx.DB, cc *cli.Context, mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, wg *sync.WaitGroup) {

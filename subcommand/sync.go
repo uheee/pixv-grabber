@@ -1,6 +1,10 @@
 package subcommand
 
 import (
+	"log/slog"
+	"sync"
+	"time"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/robfig/cron/v3"
 	"github.com/spf13/viper"
@@ -9,9 +13,6 @@ import (
 	"github.com/uheee/pixiv-grabber/request"
 	"github.com/uheee/pixiv-grabber/utils"
 	"github.com/urfave/cli/v2"
-	"log/slog"
-	"sync"
-	"time"
 )
 
 func SyncCommand() *cli.Command {

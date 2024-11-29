@@ -2,14 +2,15 @@ package job
 
 import (
 	"context"
-	"github.com/spf13/viper"
-	"github.com/uheee/pixiv-grabber/request"
 	"log/slog"
 	"net/url"
 	"os"
 	"path"
 	"strings"
 	"sync"
+
+	"github.com/spf13/viper"
+	"github.com/uheee/pixiv-grabber/request"
 )
 
 func StartDownload(ch <-chan DownloadTask, wg *sync.WaitGroup) {
