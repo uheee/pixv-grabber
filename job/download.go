@@ -8,7 +8,9 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/spf13/viper"
 	"github.com/uheee/pixiv-grabber/request"
 )
@@ -38,18 +40,21 @@ func onceDownload(task DownloadTask, host string, wg *sync.WaitGroup) {
 		return
 	}
 	var raw []byte
-	maxRetry := viper.GetInt("download.max-retry")
-	for retry := range maxRetry {
+	maxRetry := viper.GetUint("download.max-retry")
+	err = retry.Do(func() error {
 		raw, err = request.GetRawFromHttpReq(task.Url, map[string]string{
 			"User-Agent": "Mozilla/5.0",
 			"Referer":    host,
 		})
-		if err != nil {
-			slog.Error("unable to get raw from http req", "error", err, "retry", retry, "id", task.Id, "url", task.Url, "path", task.Path)
-		} else {
-			break
-		}
-	}
+		return err
+	},
+		retry.DelayType(retry.BackOffDelay),
+		retry.Delay(3*time.Second),
+		retry.MaxDelay(time.Minute),
+		retry.Attempts(maxRetry),
+		retry.OnRetry(func(n uint, err error) {
+			slog.Error("failed to download", "retry", n, "error", err)
+		}))
 	if err != nil {
 		slog.Error("unable to get raw from http req", "error", err, "id", task.Id, "url", task.Url, "path", task.Path)
 		return

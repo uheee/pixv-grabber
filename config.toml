@@ -14,5 +14,8 @@ lang = 'zh'
 limit = 100
 output = 'output'
 
+[job.filter]
+total = 120
+
 [download]
-max-retry = 5
+max-retry = 20

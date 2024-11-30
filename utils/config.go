@@ -21,6 +21,7 @@ func InitConfig() error {
 	viper.SetDefault("job.lang", "zh")
 	viper.SetDefault("job.limit", 100)
 	viper.SetDefault("job.output", "output")
+	viper.SetDefault("job.filter.total", 0)
 
 	return viper.ReadInConfig()
 }

@@ -38,6 +38,11 @@ func getBookmark(db *sqlx.DB, cc *cli.Context, mCh chan<- request.BookmarkWorkIt
 	cookie := viper.GetString("job.cookie")
 	lang := viper.GetString("job.lang")
 	limit := viper.GetInt("job.limit")
+	filterTotal := viper.GetInt("job.filter.total")
+
+	if filterTotal > 0 && *offset+limit > filterTotal {
+		limit = filterTotal - *offset
+	}
 
 	u, err := url.Parse(host)
 	if err != nil {
@@ -72,7 +77,13 @@ func getBookmark(db *sqlx.DB, cc *cli.Context, mCh chan<- request.BookmarkWorkIt
 		go getBookmarkContent(cc, mCh, dCh, work, wg)
 	}
 	*offset += limit
-	return bookmark.Total, nil
+	var total int
+	if filterTotal > 0 {
+		total = filterTotal
+	} else {
+		total = bookmark.Total
+	}
+	return total, nil
 }
 
 func getBookmarkContent(cc *cli.Context, mCh chan<- request.BookmarkWorkItem, dCh chan<- DownloadTask, work request.BookmarkWorkItem, wg *sync.WaitGroup) {
